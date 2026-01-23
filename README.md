@@ -1,6 +1,6 @@
 # Moark 多模型工具（Cloudflare Pages / Workers 直接部署）
 
-这是把你原来的 Python tkinter 桌面工具改成 **纯 HTML + JS** 的网页版本：
+**纯 HTML + JS** 的网页版本：
 - **z-image 文生图**
 - **Edit-2511 图像编辑（两张图 + prompt + task_types）**
 - **Wan2.2 图生视频（按 Duration 分段生成）**
@@ -67,7 +67,7 @@
 
 ### 2) z-image 报 404 或接口不通？
 网页版默认按 OpenAI Images Generations 路径调用：`POST /v1/images/generations`  
-如果你这家服务端路径不同，我可以按你的实际返回错误 JSON 改一下映射。
+如果你这家服务端路径不同，也可以按你的实际返回错误 JSON 改一下映射。
 
 ---
 
