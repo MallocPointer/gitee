@@ -72,6 +72,7 @@ function showPanel(model) {
   $("panelZ").style.display = model === "z-image" ? "block" : "none";
   $("panelEdit").style.display = model === "Edit-2511" ? "block" : "none";
   $("panelWan").style.display = model === "Wan2.2-I2V-A14B" ? "block" : "none";
+  $("panelHunyuan").style.display = model === "HunyuanVideo-1.5" ? "block" : "none";
 }
 
 function addOutputItem({title, kind="info", meta="", element=null, rawJson=null, download=null, openUrl=null}) {
@@ -228,6 +229,143 @@ async function pollTask(taskId, apiKey, {timeoutMs=30*60*1000, intervalMs=6000, 
     await new Promise(r => setTimeout(r, intervalMs));
   }
   return { status: "timeout", raw: { status:"timeout", message:"maximum wait time exceeded" } };
+}
+
+
+// -------- HunyuanVideo-1.5 (Text-to-Video) --------
+async function runHunyuanVideo() {
+  const apiKey = getApiKey();
+  rememberKeyMaybe();
+
+  const prompt = $("hyPrompt").value.trim();
+  if (!prompt) throw new Error("请输入提示词 / Please input prompt");
+
+  const negative_prompt = $("hyNeg").value.trim();
+
+  const aspect_ratio = $("hyAspect").value;
+  const num_inferenece_steps = clampInt($("hySteps").value, 1, 10, 10);
+  const num_frames = clampInt($("hyFrames").value, 81, 241, 241);
+
+  // seed must be positive integer
+  const seedRaw = $("hySeed").value;
+  const seed = Number.parseInt(String(seedRaw), 10);
+  if (!Number.isFinite(seed) || seed <= 0) {
+    throw new Error("seed 必须是正整数 / seed must be a positive integer");
+  }
+
+  const fps = clampInt($("hyFps").value, 1, 24, 24);
+  const openAfter = $("hyOpenUrl").checked;
+
+  // Compose payload (keep server field name: num_inferenece_steps)
+  const payload = {
+    prompt,
+    model: "HunyuanVideo-1.5",
+    aspect_ratio,
+    negative_prompt,
+    num_inferenece_steps,
+    num_frames,
+    seed,
+    fps,
+  };
+
+  setStatus("HunyuanVideo 创建任务... / Creating task...");
+  const res = await apiFetch("async/videos/generations", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const j = await readJsonSafely(res);
+  if (!res.ok) {
+    setStatus("HunyuanVideo 失败 / Failed", "err");
+    addOutputItem({
+      title: "HunyuanVideo 创建任务失败 / Create task failed",
+      meta: `HTTP ${res.status}`,
+      rawJson: j,
+    });
+    throw new Error(`API 错误 / API Error (${res.status})`);
+  }
+
+  const taskId = j.task_id;
+  if (!taskId) {
+    setStatus("HunyuanVideo 失败 / Failed", "err");
+    addOutputItem({
+      title: "HunyuanVideo 未返回 task_id / Missing task_id",
+      rawJson: j,
+    });
+    throw new Error("Task ID not found in response");
+  }
+
+  addOutputItem({
+    title: "HunyuanVideo 任务已创建 / Task created",
+    meta: `task_id=${taskId} • aspect_ratio=${aspect_ratio} • frames=${num_frames} • fps=${fps} • steps=${num_inferenece_steps} • seed=${seed}`,
+    rawJson: j,
+    openUrl: openAfter ? `https://ai.gitee.com/v1/task/${encodeURIComponent(taskId)}` : null,
+  });
+
+  setStatus("HunyuanVideo 轮询中... / Polling...");
+  let tick = 0;
+  const result = await pollTask(taskId, apiKey, {
+    intervalMs: 10 * 1000,
+    timeoutMs: 30 * 60 * 1000,
+    onTick: () => {
+      tick++;
+      if (tick % 2 === 0) setStatus(`HunyuanVideo 轮询中... (${tick}) / Polling... (${tick})`);
+    },
+  });
+
+  const st = result.status;
+  const raw = result.raw || {};
+
+  if (st !== "success") {
+    setStatus(`HunyuanVideo ${st} / ${st}`, st === "failed" ? "err" : "info");
+    addOutputItem({
+      title: `HunyuanVideo 任务结束：${st} / Task ended: ${st}`,
+      rawJson: raw,
+      meta: `task_id=${taskId}`,
+    });
+    return;
+  }
+
+  // success
+  const fileUrl = raw?.output?.file_url;
+  const textRes = raw?.output?.text_result;
+
+  if (fileUrl) {
+    const blobInfo = await fetchAsBlob(fileUrl, "video");
+    const video = document.createElement("video");
+    video.src = blobInfo.objUrl;
+    video.controls = true;
+    video.playsInline = true;
+
+    addOutputItem({
+      title: "HunyuanVideo 输出 / Output",
+      meta: `task_id=${taskId} • file_url=${fileUrl}`,
+      element: video,
+      rawJson: raw,
+      download: { href: blobInfo.objUrl, filename: `hunyuan-video-${nowTs()}.mp4` },
+      openUrl: openAfter ? fileUrl : null,
+    });
+
+    setStatus("HunyuanVideo 成功 / Success", "ok");
+  } else if (textRes) {
+    addOutputItem({
+      title: "HunyuanVideo 文本输出 / Text output",
+      meta: `task_id=${taskId}`,
+      rawJson: raw,
+    });
+    setStatus("HunyuanVideo 成功 / Success", "ok");
+  } else {
+    addOutputItem({
+      title: "HunyuanVideo 成功但无输出 / Success but no output",
+      meta: `task_id=${taskId}`,
+      rawJson: raw,
+    });
+    setStatus("HunyuanVideo 成功 / Success", "ok");
+  }
 }
 
 // -------- z-image --------
@@ -648,6 +786,12 @@ function initUi() {
     try { await runWan(); }
     catch (e) { addOutputItem({ title:"Wan2.2 错误 / Error", meta:String(e) }); }
   };
+
+  $("btnHyRun").onclick = async () => {
+    try { await runHunyuanVideo(); }
+    catch (e) { addOutputItem({ title:"HunyuanVideo 错误 / Error", meta:String(e) }); }
+  };
+
 
   $("btnClearOutput").onclick = clearOutput;
 

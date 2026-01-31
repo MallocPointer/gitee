@@ -40,6 +40,7 @@
           <option value="z-image">z-image（文生图 / Text-to-Image）</option>
           <option value="Edit-2511">Edit-2511（图像编辑 / Image Edit）</option>
           <option value="Wan2.2-I2V-A14B">Wan2.2-I2V-A14B（图生视频 / Image-to-Video）</option>
+          <option value="HunyuanVideo-1.5">HunyuanVideo-1.5（文生视频 / Text-to-Video）</option>
         </select>
       </div>
     </section>
@@ -216,6 +217,60 @@
 
       <div class="row">
         <button class="btn primary" id="btnWanRun">执行 / Generate Video</button>
+      </div>
+    </section>
+
+    <!-- HunyuanVideo-1.5 -->
+    <section class="card model-panel" id="panelHunyuan">
+      <h2>HunyuanVideo-1.5（文生视频 / Text-to-Video）</h2>
+
+      <label class="lab">提示词 Prompt（中/英均可 / CN&EN OK）</label>
+      <textarea id="hyPrompt" class="textarea" rows="6" placeholder="例如：年轻的中国女性穿着传统红色古装，轻轻撩起头纱，特写镜头，浅景深，暖色调"></textarea>
+
+      <label class="lab">负面提示词 Negative Prompt（可选 / Optional）</label>
+      <textarea id="hyNeg" class="textarea" rows="3" placeholder="例如：lowres, blurry, watermark"></textarea>
+
+      <div class="grid3">
+        <div>
+          <label class="lab">画面比例 Aspect Ratio</label>
+          <select id="hyAspect" class="input">
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+            <option value="1:1">1:1</option>
+          </select>
+        </div>
+        <div>
+          <label class="lab">steps num_inferenece_steps（1-10）</label>
+          <input id="hySteps" class="input" type="number" min="1" max="10" value="10" />
+        </div>
+        <div>
+          <label class="lab">fps（1-24）</label>
+          <input id="hyFps" class="input" type="number" min="1" max="24" value="24" />
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div>
+          <label class="lab">num_frames（81-241）</label>
+          <input id="hyFrames" class="input" type="number" min="81" max="241" value="241" />
+        </div>
+        <div>
+          <label class="lab">seed（正整数 / positive integer）</label>
+          <input id="hySeed" class="input" type="number" min="1" max="2147483647" value="1" />
+        </div>
+        <label class="chk">
+          <input type="checkbox" id="hyOpenUrl" />
+          完成后浏览器打开 file_url / Open in browser after done
+        </label>
+      </div>
+
+      <div class="hint">
+        说明：这是异步任务接口，会先返回 task_id，然后自动轮询状态直至 success/failed。<br/>
+        EN: This is an async endpoint; we create a task, then poll status until success/failed.
+      </div>
+
+      <div class="row">
+        <button class="btn primary" id="btnHyRun">执行 / Generate Video</button>
       </div>
     </section>
 
